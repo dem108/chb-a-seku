@@ -41,8 +41,8 @@ public class BasicLuisDialog : LuisDialog<object>
             var responseString = String.Empty;
 
             // Send question to API QnA bot
-            var knowledgebaseId = "c9f021df-ccdd-4d11-9e17-9ea9bf48f68e"; // Use knowledge base id created.
-            var qnamakerSubscriptionKey = "b69365ae37d04bac848fe95dff809d31"; //Use subscription key assigned to you.
+            var knowledgebaseId = "cd7b4bb7-9ce8-4908-991c-93860d1462c0"; // Use knowledge base id created.
+            var qnamakerSubscriptionKey = "db48052cd99c4c0db8d411756eea5d02"; //Use subscription key assigned to you.
 
             //Build the URI
             Uri qnamakerUriBase = new Uri("https://westus.api.cognitive.microsoft.com/qnamaker/v1.0");
