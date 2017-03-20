@@ -1,4 +1,4 @@
-#r "Newtonsoft.Json"
+ï»¿#r "Newtonsoft.Json"
 using System;
 using System.Net;
 using System.Threading.Tasks;
@@ -37,7 +37,7 @@ public class BasicLuisDialog : LuisDialog<object>
         if (result.TryFindEntity("word", out word))
         {
 
-            //word.Entity¸¦ QnAmaker·Î º¸³»´Â ·çÆ¾
+            //word.Entityë¥¼ QnAmakerë¡œ ë³´ë‚´ëŠ” ë£¨í‹´
             var responseString = String.Empty;
 
             // Send question to API QnA bot
@@ -71,7 +71,7 @@ public class BasicLuisDialog : LuisDialog<object>
             //send msg
             if (stuff.score == "0")
             {
-                await context.PostAsync($"{qnaword}´Â Á¦°¡ Àß ¸ğ¸£´Â ´Ü¾î¶ó¼­ Bing Search¸¦ »ç¿ëÇØºÃ¾î¿ä!");
+                await context.PostAsync($"{qnaword}ëŠ” ì œê°€ ì˜ ëª¨ë¥´ëŠ” ë‹¨ì–´ë¼ì„œ Bing Searchë¥¼ ì‚¬ìš©í•´ë´¤ì–´ìš”!");
 
                 const string bingAPIkey = "f35f52e4b54b455bb881fd2b6b2d7a75";
               
@@ -110,14 +110,14 @@ public class BasicLuisDialog : LuisDialog<object>
         }
         else
         {
-            await context.PostAsync($"¹Ì¾ÈÇØ¿ä ´Ù½ÃÇÑ¹ø ¸»ÇØÁÖ¼¼¿ä!"); //
+            await context.PostAsync($"ë¯¸ì•ˆí•´ìš” ë‹¤ì‹œí•œë²ˆ ë§í•´ì£¼ì„¸ìš”!"); //
         }
         context.Wait(MessageReceived);
     }
     [LuisIntent("greeting")]
     public async Task greeting(IDialogContext context, LuisResult result)
     {
-        await context.PostAsync($"¾È³çÇÏ¼¼¿ä?"); //
+        await context.PostAsync($"ì•ˆë…•í•˜ì„¸ìš”?"); //
         context.Wait(MessageReceived);
     }
 }
