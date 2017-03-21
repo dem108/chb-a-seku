@@ -1,9 +1,13 @@
 ﻿#r "Newtonsoft.Json"
+#r "System.Web"
 using System;
+using System.Web;
+using System.IO;
+using System.Text;
 using System.Net;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
-
+using HtmlAgilityPack;
 using Microsoft.Bot.Builder.Azure;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Builder.Luis;
@@ -31,7 +35,7 @@ public class BasicLuisDialog : LuisDialog<object>
     // Go to https://luis.ai and create a new intent, then train/publish your luis app.
     // Finally replace "MyIntent" with the name of your newly created intent in the following handler
     [LuisIntent("askQuestion")]
-    public async Task askQuestion(IDialogContext context, LuisResult result)
+    public async Task askQuestion(IDialogContext context, IAwaitable<object> argument, LuisResult result)
     {
         EntityRecommendation word;
         if (result.TryFindEntity("word", out word))
@@ -68,45 +72,40 @@ public class BasicLuisDialog : LuisDialog<object>
 
             //Json parsing
             dynamic stuff = JsonConvert.DeserializeObject(responseString);
-            //send msg
+
+            //for cardlayout
+            var message = await argument as Activity;
+
+            //receive msg
             if (stuff.score == "0")
             {
-                await context.PostAsync($"{qnaword}는 제가 잘 모르는 단어라서 Bing Search를 사용해봤어요!");
-
-                const string bingAPIkey = "f35f52e4b54b455bb881fd2b6b2d7a75";
-              
-                string queryUri = "https://api.cognitive.microsoft.com/bing/v5.0/search?q="+ qnaword+ "&count=2&offset=0&mkt=ko-kr&safesearch=Strict";
-
-                //Helper objects to call the News Search API and store the response
-                HttpClient httpClient = new HttpClient();
-                httpClient.DefaultRequestHeaders.Add("Ocp-Apim-Subscription-Key", bingAPIkey); //authentication header to pass the API key
-                httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-                string bingRawResponse; //raw response from REST endpoint
-                BingWebResults bingJsonResponse = null; //Deserialized response 
-
-                try
-                {
-                    bingRawResponse = await httpClient.GetStringAsync(queryUri);
-                    await context.PostAsync($"{bingRawResponse}");
-                    //have to configure this section
-                    //bingJsonResponse = JsonConvert.DeserializeObject<BingWebResults>(bingRawResponse);
-                }
-                catch (Exception e)
-                {
-                    //add code to handle exceptions while calling the REST endpoint and/or deserializing the object
-                }
-
-                //NewsResult[] newsResult = bingJsonResponse.value;
-
-                //if (newsResult == null || newsResult.Length == 0)
-                //{
-                //    //add code to handle the case where results are null are zero
-                //}
+                findMore(qnaword, message, context);
             }
             else
             {
-                await context.PostAsync($"{word.Entity} : {stuff.answer}");
+                await context.PostAsync($"{qnaword}의 뜻은 이거에요 {stuff.answer}");
+                findMore(qnaword, message, context);
             }
+            Activity replyToConversation = message.CreateReply("더 알아보고 싶나요?");
+
+            ReceiptCard receiptCard = new ReceiptCard()
+            {
+                Buttons = new List<CardAction> {
+                        new CardAction()
+                        {
+                            Title = "인터넷 검색하기"
+                        },                        
+                        new CardAction()
+                        {
+                            Title = "아뇨 계속 질문 할래요"
+                        }
+                    }
+            };
+            replyToConversation.Attachments = new List<Attachment> {
+                    receiptCard.ToAttachment()
+                };
+
+            await context.PostAsync(replyToConversation);
         }
         else
         {
@@ -117,30 +116,139 @@ public class BasicLuisDialog : LuisDialog<object>
     [LuisIntent("greeting")]
     public async Task greeting(IDialogContext context, LuisResult result)
     {
-        await context.PostAsync($"안녕하세요?"); //
+        await context.PostAsync($"안녕~ 난 천재학습백과 상담 로봇 \"천재봇\"이야 뭐가 궁금하니?"); //
         context.Wait(MessageReceived);
     }
-}
-public class BingWebResults
-{
-    public string _type { get; set; }
-    public int totalEstimatedMatches { get; set; }
-    public string readLink { get; set; }
-    public string webSearchUrl { get; set; }
-    public ImageResult[] value { get; set; }
-}
-public class ImageResult
-{
-    public string name { get; set; }
-    public string webSearchUrl { get; set; }
-    public string thumbnailUrl { get; set; }
-    public object datePublished { get; set; }
-    public string contentUrl { get; set; }
-    public string hostPageUrl { get; set; }
-    public string contentSize { get; set; }
-    public string encodingFormat { get; set; }
-    public string hostPageDisplayUrl { get; set; }
-    public int width { get; set; }
-    public int height { get; set; }
-    public string accentColor { get; set; }
+
+    public async void findMore(string qnaword, Activity message, IDialogContext context)
+    {
+        string strEncode = HttpUtility.UrlEncode(qnaword);
+        strEncode = strEncode.ToUpper();
+        string queryUri = "http://koc.chunjae.co.kr/search.do?query=" + strEncode + "&cardType=&userSearch=1&SchoolIdx=";
+
+        // Create a new 'HttpWebRequest' object to the mentioned URL.
+        HttpWebRequest myHttpWebRequest = (HttpWebRequest)WebRequest.Create(queryUri);
+        myHttpWebRequest.UserAgent = "Mozilla/5.0 (Windows; U; Windows NT 6.1; en-US; rv:1.9.2.13) Gecko/20101203 Firefox/3.6.13";
+        // Assign the response object of 'HttpWebRequest' to a 'HttpWebResponse' variable.
+        HttpWebResponse myHttpWebResponse = (HttpWebResponse)myHttpWebRequest.GetResponse();
+
+        if (myHttpWebResponse.StatusCode == HttpStatusCode.OK)
+        {
+            Stream receiveStream = myHttpWebResponse.GetResponseStream();
+            StreamReader readStream = null;
+
+            if (myHttpWebResponse.CharacterSet == null)
+            {
+                readStream = new StreamReader(receiveStream);
+            }
+            else
+            {
+                readStream = new StreamReader(receiveStream, Encoding.GetEncoding(myHttpWebResponse.CharacterSet));
+            }
+
+            string data = readStream.ReadToEnd();
+
+            //파싱
+
+            Activity replyToConversation = message.CreateReply($"천재백과에서 {qnaword}에 대해 찾아봤어요");
+            replyToConversation.Recipient = message.From;
+            replyToConversation.Type = "message";
+            Dictionary<string, string[]> cardContentList = new Dictionary<string, string[]>();
+
+            HtmlDocument doc = new HtmlDocument();
+            doc.LoadHtml(data);
+            doc.LoadHtml(doc.GetElementbyId("searchResult01").InnerHtml);
+            var contents = doc.DocumentNode.Descendants("div").Where(d => d.Attributes["class"].Value.Contains("core"));
+            int i = 0;
+            foreach (var content in contents)
+            {
+                HtmlDocument tmpdoc = new HtmlDocument();
+                tmpdoc.LoadHtml(content.InnerHtml);
+                var links = tmpdoc.DocumentNode.Descendants("a").Where(d => d.Attributes["class"].Value.Contains("link"));
+                var imgs = tmpdoc.DocumentNode.Descendants("img");
+                var subjects = tmpdoc.DocumentNode.Descendants("span").Where(d => d.Attributes["class"].Value.Contains("subject"));
+                var texts = tmpdoc.DocumentNode.Descendants("span").Where(d => d.Attributes["class"].Value.Contains("text")); ;
+
+                string s_imgsrc = string.Empty;
+                string s_subject = string.Empty;
+                string s_text = string.Empty;
+                string s_link = string.Empty;
+
+                foreach (var img in imgs)
+                {
+                    s_imgsrc = img.Attributes["src"].Value;
+                }
+                foreach (var link in links)
+                {
+                    s_link = link.Attributes["href"].Value;
+                }
+                foreach (var subject in subjects)
+                {
+                    s_subject = subject.InnerHtml;
+                }
+                foreach (var text in texts)
+                {
+                    s_text = text.InnerHtml;
+                }
+                string[] tmp = new string[3];
+                tmp[0] = $"http://koc.chunjae.co.kr{s_imgsrc}";
+                tmp[1] = s_text;
+                tmp[2] = $"http://koc.chunjae.co.kr{s_link}";
+                cardContentList.Add($"{i}:{s_subject}", tmp);
+                i++;
+            }
+
+            myHttpWebResponse.Close();
+            readStream.Close();
+
+
+
+            foreach (KeyValuePair<string, string[]> cardContent in cardContentList)
+            {
+                List<CardImage> cardImages = new List<CardImage>();                
+                cardImages.Add(new CardImage(url: cardContent.Value[0]));
+
+                List<CardAction> cardButtons = new List<CardAction>();
+
+                string tmplink = cardContent.Key;
+                string[] split_string = tmplink.Split(':');
+
+                CardAction plButton = new CardAction()
+                {
+                    Value = $"https://ko.wikipedia.org/wiki/{split_string[1]}",
+                    Type = "openUrl",
+                    Title = "WikiPedia 페이지로.."
+                };
+                cardButtons.Add(plButton);
+               
+                plButton = new CardAction()
+                {                    
+                    Title = "퀴즈 풀어보기"
+                };
+                cardButtons.Add(plButton);
+                plButton = new CardAction()
+                {
+                    Value = $"{cardContent.Value[2]}",
+                    Type = "openUrl",
+                    Title = "천재학습백과 페이지로.."
+                };
+                cardButtons.Add(plButton);
+
+                HeroCard plCard = new HeroCard()
+                {
+                    Title = $"{cardContent.Key}",
+                    Subtitle = $"{cardContent.Value[1]}",
+                    Images = cardImages,
+                    Buttons = cardButtons
+                };
+
+                Attachment plAttachment = plCard.ToAttachment();
+                replyToConversation.Attachments.Add(plAttachment);
+            }
+
+            replyToConversation.AttachmentLayout = AttachmentLayoutTypes.Carousel;
+
+            await context.PostAsync(replyToConversation);
+        }
+    }
 }
