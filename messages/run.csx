@@ -1,5 +1,6 @@
 ﻿#r "Newtonsoft.Json"
 #load "BasicLuisDialog.csx"
+#load "AskGradeDialog.csx"
 
 using System;
 using System.Text;
@@ -14,6 +15,7 @@ using Microsoft.Bot.Connector;
 public static async Task<object> Run(HttpRequestMessage req, TraceWriter log)
 {
     log.Info($"Webhook was triggered!");
+
 
     // Global values
     string strUserName = "";
@@ -34,48 +36,18 @@ public static async Task<object> Run(HttpRequestMessage req, TraceWriter log)
     
         if (activity != null)
         {
-            var client = new ConnectorClient(new Uri(activity.ServiceUrl));
             // one of these will have an interface and process it
             switch (activity.GetActivityType())
             {
-                case ActivityTypes.Message:
-                    // Get any saved values
-                    StateClient sc = activity.GetStateClient();
-                    BotData userData = sc.BotState.GetPrivateConversationData(activity.ChannelId, activity.Conversation.Id, activity.From.Id);
-                    strUserName = userData.GetProperty<string>("UserName") ?? "";
-
-                    StringBuilder strReplyMessage = new StringBuilder();
-
-                    if (strUserName == "") // Name was never provided
+                case ActivityTypes.Message:                    
+                    await Conversation.SendAsync(activity, () => new AskGradeDialog());
+                    if (activity.Text=="처음부터")
                     {
-                        // If we have asked for a username but it has not been set
-                        // the current response is the user name
-                        strReplyMessage.Append($"안녕하세요 {activity.Text}학년 이군요!");
-                        strReplyMessage.Append($"\n");
-                        strReplyMessage.Append($"무엇이 궁금하나요?");
-
-
-                        // Set BotUserData
-                        userData.SetProperty<string>("UserName", activity.Text);
-                        sc.BotState.SetPrivateConversationData(activity.ChannelId, activity.Conversation.Id, activity.From.Id, userData);
-
-                        //send reply
-                        ConnectorClient connector = new ConnectorClient(new Uri(activity.ServiceUrl));
-                        Activity replyMessage = activity.CreateReply(strReplyMessage.ToString());
-                        await connector.Conversations.ReplyToActivityAsync(replyMessage);
-
+                        activity.GetStateClient().BotState.DeleteStateForUser(activity.ChannelId, activity.From.Id);
                     }
-                    else // Name was provided
-                    {
-                        strReplyMessage.Append($"{strUserName}학년");
-                        Activity replyMessage = activity.CreateReply(strReplyMessage.ToString());
-                        await client.Conversations.ReplyToActivityAsync(replyMessage);
-
-                        await Conversation.SendAsync(activity, () => new BasicLuisDialog());
-                    }
-
                     break;
                 case ActivityTypes.ConversationUpdate:
+                    var client = new ConnectorClient(new Uri(activity.ServiceUrl));
                     IConversationUpdateActivity update = activity;
                     if (update.MembersAdded.Any())
                     {
@@ -83,11 +55,9 @@ public static async Task<object> Run(HttpRequestMessage req, TraceWriter log)
                         var newMembers = update.MembersAdded?.Where(t => t.Id != activity.Recipient.Id);
                         foreach (var newMember in newMembers)
                         {
-                            reply.Text = "안녕하세요? 무엇이든지 물어볼 봇입니다!";
+                            reply.Text = $"안녕? 난 천재학습백과 상담 로봇 \"천재봇\"이야! 궁금한 걸 물어보면 대답해 줄 수 있어~";
                             await client.Conversations.ReplyToActivityAsync(reply);
-                            reply.Text = $"친구의 학년을 알고싶어요. 몇학년인지 숫자를 써주세요!";
-                            await client.Conversations.ReplyToActivityAsync(reply);
-                        }                     
+                        }
                     }
                     break;
                 case ActivityTypes.ContactRelationUpdate:
