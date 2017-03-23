@@ -90,7 +90,7 @@ public class BasicLuisDialog : LuisDialog<object>
         }
         else
         {
-            await context.PostAsync($"미안해요 다시한번 말해주세요!"); //
+            await context.PostAsync($"미안해요 미안 안알랴줌. 노코멘트하겠어!"); //
         }
     }
     //context.Call(new MenuDialog(), (context, result) => { /*Do something. at this point your are back to the parent dialog.*/});
@@ -298,7 +298,7 @@ public class BasicLuisDialog : LuisDialog<object>
                 {
                     Value = $"https://ko.wikipedia.org/wiki/{split_string[1]}",
                     Type = "openUrl",
-                    Title = "WikiPedia 페이지로.."
+                    Title = "위키피디아에서 더보기.."
                 };
                 cardButtons.Add(plButton);
 
@@ -306,7 +306,7 @@ public class BasicLuisDialog : LuisDialog<object>
                 {
                     Value = $"{cardContent.Value[2]}",
                     Type = "openUrl",
-                    Title = "천재학습백과 페이지로.."
+                    Title = "천재학습백과에서 더보기.."
                 };
                 cardButtons.Add(plButton);
 

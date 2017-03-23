@@ -15,7 +15,7 @@ public class AskGradeDialog : IDialog<object>
 {
 
     private const string ElementaryOption = "초등";
-    private const string MiddleOption = "중";
+    private const string MiddleOption = "중등";
     private const string HighOption = "고등";
     protected string strUserGrade = "";
     
@@ -47,7 +47,14 @@ public class AskGradeDialog : IDialog<object>
     {
         string optionSelected = await result;
         strUserGrade = optionSelected;
-        await context.PostAsync($"{optionSelected} 학생이구나? 반가워. 뭐가궁금하니?"); //
+        string tmp = "";
+        if (strUserGrade.Equals("중등"))
+        {
+            await context.PostAsync($"중학생이구나? 반가워. 뭐가궁금하니?"); //
+        } else
+        {
+            await context.PostAsync($"{optionSelected}학생이구나? 반가워. 뭐가궁금하니?"); //
+        }
     }
     private async Task ResumeAfterSupportDialog(IDialogContext context, IAwaitable<object> result)
     {
